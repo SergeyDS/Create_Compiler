@@ -1,20 +1,46 @@
-﻿// Create_Compiler.cpp : Этот файл содержит функцию "main". Здесь начинается и заканчивается выполнение программы.
-//
-
+﻿#include <fstream>
 #include <iostream>
+#include <optional>
+#include <sstream>
+#include <vector>
 
-int main()
+#include "generation.hpp"
+
+int main(int argc, char* argv[])
 {
-    std::cout << "Hello World!\n";
+   if (argc != 2) {
+      std::cerr << "Incorrect usage. Correct usage is..." << std::endl;
+      std::cerr << "hydro <input.hy>" << std::endl;
+      return EXIT_FAILURE;
+   }
+
+   std::string contents;
+   {
+      std::stringstream contents_stream;
+      std::fstream input(argv[1], std::ios::in);
+      contents_stream << input.rdbuf();
+      contents = contents_stream.str();
+   }
+
+   Tokenizer tokenizer(std::move(contents));
+   std::vector<Token> tokens = tokenizer.tokenize();
+
+   Parser parser(std::move(tokens));
+   std::optional<NodeProg> prog = parser.parse_prog();
+
+   if (!prog.has_value()) {
+      std::cerr << "Invalid program" << std::endl;
+      exit(EXIT_FAILURE);
+   }
+
+   {
+      Generator generator(prog.value());
+      std::fstream file("out.asm", std::ios::out);
+      file << generator.gen_prog();
+   }
+
+   system("nasm -felf64 out.asm");
+   system("ld -o out out.o");
+
+   return EXIT_SUCCESS;
 }
-
-// Запуск программы: CTRL+F5 или меню "Отладка" > "Запуск без отладки"
-// Отладка программы: F5 или меню "Отладка" > "Запустить отладку"
-
-// Советы по началу работы 
-//   1. В окне обозревателя решений можно добавлять файлы и управлять ими.
-//   2. В окне Team Explorer можно подключиться к системе управления версиями.
-//   3. В окне "Выходные данные" можно просматривать выходные данные сборки и другие сообщения.
-//   4. В окне "Список ошибок" можно просматривать ошибки.
-//   5. Последовательно выберите пункты меню "Проект" > "Добавить новый элемент", чтобы создать файлы кода, или "Проект" > "Добавить существующий элемент", чтобы добавить в проект существующие файлы кода.
-//   6. Чтобы снова открыть этот проект позже, выберите пункты меню "Файл" > "Открыть" > "Проект" и выберите SLN-файл.
